@@ -19,10 +19,10 @@ The API URL is provided by the CloudFormation script on the output tab
 
 | Parameter        | Description           | Mandatory  |
 | ------------- |:-------------| -----:|
-| sender      | Sender ID to use when sending the SMS message | Yes |
+| senderid      | Sender ID to use when sending the SMS message | Yes |
 | msisdn      | MSIDSN of the recipient that the message will be sent to. Eg: +61412345678 or 61412345678      |   Yes |
 | message | Message content to be sent      |    Yes |
 
 ## Example Request
 
-https://6ou9x3xgua.execute-api.ap-southeast-2.amazonaws.com/dev/sendsms?sender=Test&msisdn=+61412345678&message=Test
+https://6ou9x3xgua.execute-api.ap-southeast-2.amazonaws.com/dev/sendsms?senderid=Test&msisdn=+61412345678&message=Test

@@ -21,7 +21,7 @@
             "",
             "def sms_handler(event,context):",
             "",
-            "    response = sns_client.publish(PhoneNumber=event[\"msisdn\"],Message=event[\"message\"],MessageAttributes={'AWS.SNS.SMS.SenderID': {'DataType': 'String','StringValue': event[\"sender\"]},'AWS.SNS.SMS.SMSType': {'DataType': 'String','StringValue': 'Transactional'}})", 
+            "    response = sns_client.publish(PhoneNumber=event[\"msisdn\"],Message=event[\"message\"],MessageAttributes={'AWS.SNS.SMS.SenderID': {'DataType': 'String','StringValue': event[\"senderid\"]},'AWS.SNS.SMS.SMSType': {'DataType': 'String','StringValue': 'Transactional'}})", 
             "",
             "    logger.info(response)",
             "    return 'OK'",
@@ -159,13 +159,13 @@
           }],
           "RequestParameters":{
             "integration.request.querystring.msisdn": "method.request.querystring.msisdn",
-            "integration.request.querystring.sender": "method.request.querystring.sender",
+            "integration.request.querystring.senderid": "method.request.querystring.senderid",
             "integration.request.querystring.message": "method.request.querystring.message"
           },
           "RequestTemplates": {
             "application/json": {"Fn::Join": ["", [
               "{",
-              "  \"sender\": \"$input.params('sender')\",",
+              "  \"senderid\": \"$input.params('senderid')\",",
               "  \"msisdn\": \"$input.params('msisdn')\",",
               "  \"message\": \"$input.params('message')\"",
               "}"
@@ -173,7 +173,7 @@
           }
         },
         "RequestParameters": {
-          "method.request.querystring.sender": true,
+          "method.request.querystring.senderid": true,
           "method.request.querystring.msisdn": true,
           "method.request.querystring.message": true,
         },
