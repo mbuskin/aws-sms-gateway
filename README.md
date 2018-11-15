@@ -30,3 +30,17 @@ When sending a requests to the SMS API URL the below HTTP parameters are require
 ### Example Request
 
 https://6ou9x3xgua.execute-api.ap-southeast-2.amazonaws.com/dev/sendsms?senderid=Test&msisdn=+61412345678&message=Test
+
+## IAM Roles
+
+As a part of the CloudFormation deployment two IAM roles are created, these roles in turn provide access to write logs through to CloudWatch and to permit access to publish to SNS. For production deployments it is recommended that you appropriately secure the roles down to least privilege as determined by the below table.
+
+| ApiGatewayCloudWatchLogsRole | LambdaExecutionRole |
+| ---------------------------- | ------------------- |
+| logs:CreateLogGroup | sns:Publish |
+| logs:CreateLogStream |  |
+| logs:DescribeLogGroups |  |
+| logs:DescribeLogStreams |  |
+| logs:PutLogEvents |  |
+| logs:GetLogEvents |  |
+| logs:FilterLogEvents | |
