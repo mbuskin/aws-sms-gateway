@@ -11,11 +11,15 @@ The Client issues either a HTTP GET or POST request to the API interface supplyi
 
 The HTTP-API is used for one-way messaging only.
 
+## API URL
+
+The API URL generated is available on the output tab from within the AWS CloudFormation console.
+
 ## Sending an SMS
 
-The API URL is provided by the CloudFormation script on the output tab
+When sending a requests to the SMS API URL the below HTTP parameters are required in order for the message to be processed successfully.
 
-## HTTP Parameters
+### HTTP Parameters
 
 | Parameter        | Description           | Mandatory  |
 | ------------- |:-------------| -----:|
@@ -23,6 +27,6 @@ The API URL is provided by the CloudFormation script on the output tab
 | msisdn      | MSIDSN of the recipient that the message will be sent to. Eg: +61412345678 or 61412345678      |   Yes |
 | message | Message content to be sent      |    Yes |
 
-## Example Request
+### Example Request
 
 https://6ou9x3xgua.execute-api.ap-southeast-2.amazonaws.com/dev/sendsms?senderid=Test&msisdn=+61412345678&message=Test
