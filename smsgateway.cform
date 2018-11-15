@@ -1,0 +1,195 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "AWS CloudFormation template for SMS Gateway API and Lambda function to provide access to send SMS messages.",
+
+  "Resources": {
+
+    "LambdaFunction": {
+      "Type": "AWS::Lambda::Function",
+      "Properties": {
+        "Code": {
+          "ZipFile": { "Fn::Join": ["\n", [
+            "import json",
+            "import logging",
+            "import boto3",
+            "",
+            "logger = logging.getLogger()",
+            "logger.setLevel(logging.INFO)",
+            "",
+            {"Fn::Join" : [ "", [ "session = boto3.Session(region_name=\"", {"Ref": "AWS::Region"}, "\")"]]},
+            "sns_client = session.client('sns')",
+            "",
+            "def sms_handler(event,context):",
+            "",
+            "    response = sns_client.publish(PhoneNumber=event[\"msisdn\"],Message=event[\"message\"],MessageAttributes={'AWS.SNS.SMS.SenderID': {'DataType': 'String','StringValue': event[\"sender\"]},'AWS.SNS.SMS.SMSType': {'DataType': 'String','StringValue': 'Transactional'}})", 
+            "",
+            "    logger.info(response)",
+            "    return 'OK'",
+            ""
+          ]]}
+        },
+        "FunctionName": "sendsms",
+        "Handler": "index.sms_handler",
+        "Role": { "Fn::GetAtt": ["LambdaExecutionRole", "Arn"]},
+        "Runtime": "python3.6"
+      }
+    },
+
+    "LambdaExecutionRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Service": ["lambda.amazonaws.com"] },
+            "Action": ["sts:AssumeRole"]
+          }]
+        },
+        "ManagedPolicyArns": ["arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole","arn:aws:iam::aws:policy/AmazonSNSFullAccess"]
+      }
+    },
+
+    "SMSApi": {
+      "Type": "AWS::ApiGateway::RestApi",
+      "Properties": {
+        "Name": "SMSGateway API",
+        "Description": "API used for SMS requests",
+        "FailOnWarnings": true
+      }
+    },
+
+    "LambdaPermission": {
+      "Type": "AWS::Lambda::Permission",
+      "Properties": {
+        "Action": "lambda:invokeFunction",
+        "FunctionName": {"Fn::GetAtt": ["LambdaFunction", "Arn"]},
+        "Principal": "apigateway.amazonaws.com",
+        "SourceArn": {"Fn::Join": ["", ["arn:aws:execute-api:", {"Ref": "AWS::Region"}, ":", {"Ref": "AWS::AccountId"}, ":", {"Ref": "SMSApi"}, "/*"]]}
+      }
+    },
+    "ApiGatewayCloudWatchLogsRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [{
+            "Effect": "Allow",
+            "Principal": { "Service": ["apigateway.amazonaws.com"] },
+            "Action": ["sts:AssumeRole"]
+          }]
+        },
+        "Policies": [{
+          "PolicyName": "ApiGatewayLogsPolicy",
+          "PolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [{
+              "Effect": "Allow",
+              "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams",
+                "logs:PutLogEvents",
+                "logs:GetLogEvents",
+                "logs:FilterLogEvents"
+              ],
+              "Resource": "*"
+            }]
+          }
+        }]
+      }
+    },
+
+    "ApiGatewayAccount": {
+      "Type": "AWS::ApiGateway::Account",
+      "Properties": {
+        "CloudWatchRoleArn": {"Fn::GetAtt": ["ApiGatewayCloudWatchLogsRole", "Arn"] }
+      }
+    },
+
+    "SMSApiStage": {
+      "DependsOn": ["ApiGatewayAccount"],
+      "Type": "AWS::ApiGateway::Stage",
+      "Properties": {
+        "DeploymentId": {"Ref": "SMSApiDeployment"},
+        "MethodSettings": [{
+          "DataTraceEnabled": true,
+          "HttpMethod": "*",
+          "LoggingLevel": "INFO",
+          "ResourcePath": "/*"
+        }],
+        "RestApiId": {"Ref": "SMSApi"},
+        "StageName": "LATEST"
+      }
+    },
+
+    "SMSApiDeployment": {
+      "Type": "AWS::ApiGateway::Deployment",
+      "DependsOn": ["SMSApiRequest"],
+      "Properties": {
+        "RestApiId": {"Ref": "SMSApi"},
+        "StageName": "dev"
+      }
+    },
+
+    "SMSApiResource": {
+      "Type": "AWS::ApiGateway::Resource",
+      "Properties": {
+        "RestApiId": {"Ref": "SMSApi"},
+        "ParentId": {"Fn::GetAtt": ["SMSApi", "RootResourceId"]},
+        "PathPart": "sendsms"
+      }
+    },
+
+    "SMSApiRequest": {
+      "DependsOn": "LambdaPermission",
+      "Type": "AWS::ApiGateway::Method",
+      "Properties": {
+        "AuthorizationType": "NONE",
+        "HttpMethod": "GET",
+        "Integration": {
+          "Type": "AWS",
+          "IntegrationHttpMethod": "POST",
+          "Uri": {"Fn::Join": ["",
+            ["arn:aws:apigateway:", {"Ref": "AWS::Region"}, ":lambda:path/2015-03-31/functions/", {"Fn::GetAtt": ["LambdaFunction", "Arn"]}, "/invocations"]
+          ]},
+          "IntegrationResponses": [{
+            "StatusCode": 200
+          }],
+          "RequestParameters":{
+            "integration.request.querystring.msisdn": "method.request.querystring.msisdn",
+            "integration.request.querystring.sender": "method.request.querystring.sender",
+            "integration.request.querystring.message": "method.request.querystring.message"
+          },
+          "RequestTemplates": {
+            "application/json": {"Fn::Join": ["", [
+              "{",
+              "  \"sender\": \"$input.params('sender')\",",
+              "  \"msisdn\": \"$input.params('msisdn')\",",
+              "  \"message\": \"$input.params('message')\"",
+              "}"
+            ]]}
+          }
+        },
+        "RequestParameters": {
+          "method.request.querystring.sender": true,
+          "method.request.querystring.msisdn": true,
+          "method.request.querystring.message": true,
+        },
+        "ResourceId": {"Ref": "SMSApiResource"},
+        "RestApiId": {"Ref": "SMSApi"},
+        "MethodResponses": [{
+          "StatusCode": 200
+        }]
+      }
+    }
+  },
+
+  "Outputs": {
+    "RootUrl": {
+      "Description": "Root URL of the API gateway",
+      "Value": {"Fn::Join": ["", ["https://", {"Ref": "SMSApi"}, ".execute-api.", {"Ref": "AWS::Region"}, ".amazonaws.com"]]}
+    }
+  }
+}
