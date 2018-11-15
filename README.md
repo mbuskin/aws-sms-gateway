@@ -25,4 +25,4 @@ The API URL is provided by the CloudFormation script on the output tab
 
 ## Example Request
 
-https://<apiurl>/dev/sendsms?sender=Test&msisdn=+61412345678&message=Test
+https://6ou9x3xgua.execute-api.ap-southeast-2.amazonaws.com/dev/sendsms?sender=Test&msisdn=+61412345678&message=Test
